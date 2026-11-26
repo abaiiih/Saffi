@@ -16,6 +16,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.Base64;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
@@ -83,6 +84,35 @@ public class MainActivity extends Activity {
         js("window.tvBack && window.tvBack()");
     }
 
+    private boolean longFired = false;
+
+    /** OK and Menu are handled here so they work the same on every remote. */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent e) {
+        int k = e.getKeyCode();
+        boolean ok = k == KeyEvent.KEYCODE_DPAD_CENTER || k == KeyEvent.KEYCODE_ENTER
+                || k == KeyEvent.KEYCODE_NUMPAD_ENTER;
+        if (ok) {
+            if (e.getAction() == KeyEvent.ACTION_DOWN) {
+                if (e.getRepeatCount() == 0) {
+                    longFired = false;
+                } else if (!longFired && e.getRepeatCount() >= 8) {
+                    longFired = true;
+                    js("window.tvLong && window.tvLong()");
+                }
+            } else if (e.getAction() == KeyEvent.ACTION_UP) {
+                if (!longFired) js("window.tvOk && window.tvOk()");
+                longFired = false;
+            }
+            return true;
+        }
+        if (k == KeyEvent.KEYCODE_MENU) {
+            if (e.getAction() == KeyEvent.ACTION_UP) js("window.tvLong && window.tvLong()");
+            return true;
+        }
+        return super.dispatchKeyEvent(e);
+    }
+
     private void hideBars() {
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_FULLSCREEN
@@ -134,7 +164,7 @@ public class MainActivity extends Activity {
     }
 
     private String iconData(Drawable d) {
-        int size = 128;
+        int size = 96;
         Bitmap b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(b);
         d.setBounds(0, 0, size, size);
